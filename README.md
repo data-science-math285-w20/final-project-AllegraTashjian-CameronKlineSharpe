@@ -10,6 +10,11 @@ A temporary website has been created by Cameron, although the original plan was 
 
 The temprorary webiste can be found at: https://sites.google.com/carleton.edu/finalprojectmath285-at-cks/
 
+Note that because of the last minute nature of the set up of the website, not all the graphs are showing up.
+
+A better idea of what the final product should look like is if you actually run CKS.Rmd to turn it into an HTML
+document.
+
  Be aware that you will need to be signed in to a Carleton College account see this website.
   Also, for some reason the interactive graph is not showing up here. I don't know how to fix this, but the code
   (and HTML file) are both in this github directory.

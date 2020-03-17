@@ -1,0 +1,391 @@
+---
+title: "Math-285: Stop-and-Frisk In NYC"
+output: html_notebook
+runtime: shiny
+---
+
+```{r packages, include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(caret)
+library(rpart)
+library(partykit)
+library(shiny)
+library(plotly)
+knitr::opts_chunk$set(echo=FALSE, fig.width = 10)
+```
+
+```{r getData, include=FALSE}
+stopFrisk <- read_csv("stopFrisk.csv")
+
+stopFrisk <- stopFrisk %>%
+  mutate(date = mdy(STOP_FRISK_DATE),
+         hour = as.numeric(str_extract(`Stop Frisk Time`, "\\d*(?=:)")),
+         month = month(date),
+         day = day(date),
+         SEARCHED_FLAG = ifelse(SEARCHED_FLAG == "Y", "Yes", "No"),
+         SUSPECT_ARRESTED_FLAG = ifelse(SUSPECT_ARRESTED_FLAG == "Y", "Yes", "No"))
+```
+
+### Intro
+
+The highly controversial 1968 *Terry v. Ohio* Supreme Court case ruled that police officers, even when lacking probable cause for an arrest, can search someone's belongings (aka "frisk") in order find weapons if the officer suspects that the person being searched is armed and dangerous at the time of the search. This ruling set the stage for the policy that would later be known as stop and frisk to be put into law in New York City. Despite criticism leveled at the program, it was not put in place without reason. Along with many other police reforms of the time, this new course of action was part of a "broken windows" theory of crime prevention. This theory posits that the best way to prevent crime is to crack down on so-called low-level offences, because those crimes create an environment in which more serious breaches of the law become more acceptable or commonplace. In the modern age, proponents of stop and frisk (or other similar policies) argue that by showing low-level offenders the consequences of their actions before they partake in serious crime, more dangerous crimes will be discouraged. While these may seem to be reasonable theories for preventing crime, the actual execution of stop and frisk was anything but ideal. Perhaps foremost among the problems with the implementation of stop and frisk was the sheer number of stops that occurred. At their peak in 2011, about 685,000 stops occurred in a single year. Furthermore, many of those stops (over 80%) did not result in an arrest (see the NYCLU website's page for this data at https://www.nyclu.org/en/stop-and-frisk-data). To add to the mess, accusations that the police were racially profiling young African American and Hispanic men were rampant. These accusations were not just hot air, either. The 2013 case Floyd v. City of New York ruled that stop and frisk had been used in a racial discriminatory and thus, unconstitutional manner. Since that time, the number of reported stop and frisk cases has dropped precipitously. However, questions about the current state of policing in NYC still remain. Is racial profiling still occurring? How many stops happen in a year? How successful are these stops at finding and arresting criminals? These questions, and many others, are the focus of this project.
+
+### The Data
+
+Our data is taken from the New York Civil Liberties Union (NYCLU) website at https://www.nyclu.org/en/stop-and-frisk-data. The data is collected for the purpose of understanding how and why stops occur. In particular, the NYCLU is interested in the racial disparities in the use of policies like stop-and-frisk. However, there are several important flaws in how this data is collected. First, it is self-reported in three different ways. Each case is a record created by an officer (or group of officers) which may be biased in what information they include or how that information is presented. While idiosyncratic biases might be washed out by the size of the data set, systemic bias may produce patterns in the data which are not reflective of the reality of police interactions with ordinary people in NYC. Some of this data is also self-reported in the sense that it is reported by those who are searched, for example, no "age" category is in the data set; instead, there is a "reported age" category. Furthermore, this data as a whole is turned over by a department, which may have incentives of its own to conceal and manipulate facts this data can convey. The exact extent (or existence) of any systemic manipulations in this data set are beyond the scope of this project. However, especially when it comes to choices made by officers (such as whether to search or arrest someone), there may be systematic biases that distort these data as compared to the real world. 
+
+Thus, for example, it is difficult to say that a stop is 'successful' if it results in an arrest, because factors that result in an unneeded stop may also result in an unnecessary arrest. Furthermore, such errors may well be systemic; for example, it may be that some communities are targeted for arrest at disproportionately high rates. Furthermore, as part of a "broken windows" strategy, many encounters with the police may be the point of continuous stops in a certain region or among a certain community, simply because it sends the message that law enforcement are constantly on the lookout for any crimes (or criminals). In this way, limitations in both the data set (convictions are absent here, for example) and in knowledge of future behavior of both police and those stopped by police, render certain types of questions quite difficult to answer. However, there is still some merit to using what data is available to dig into the behavior of NYC residents and the police officers that serve the city.
+
+This data, as it was collected and reported by humans about humans, is somewhat messy and difficult to work with. One example of this is the way that "no value" was reported. Usually, such would be reported as "NULL" or just as two commas with nothing separating them in a csv file. However, this database uses "(null)" (quotes included), which is somewhat idiosyncratic. We needed to change those into actual null values before further analysis could take place. To add insult to injury, these nulls are quite common in the data--to the extent that there is no row which does not have at least one null in it. This makes certain types of analysis (for example, predicting when those who are searched will also be arrested) somewhat challenging. It is also unclear what these nulls actually mean--it could mean "nothing reported", but it could also be a short way of noting whatever the 'default' value is for some variable. For example, if there is a null where arrests are noted, that probably means that no arrest took place. However, if there is a null in "suspect's sex" it is unclear what that corresponds to. Considerations like these had to take place on a variable by variable basis, which slowed down analysis significantly.
+
+
+
+### Results
+
+Let us first consider when people are most likely to get stopped. From the perspective of police officer, it would be nice to determine when stops are most likely to lead to arrests. However, from the perspective of an ordinary citizen, it would be nice to avoid having to be stop-and-frisked by a police officer. Thus, we will consider both perspectives.
+
+Let us first consider when in the day stops tend to occur. The number of stops performed by police does seem to vary by time of day, but we were curious to see if the pattern of stops would change based on the season. So, we split up months into winter, summer, and other months, and considered the number of stops made by hour of the day in winter and summer months. On close examination, we can see that there is a noticeable peak in stops during the early evening, although the exact time varies according to the time of year. In the winter, the peak time tends to be roughly 5:00 PM, while in the summer, the peak is a few hours later. Furthermore, there is also a consistent dip in the number of stops in the very early morning, although that dip is more pronounced in the cooler months. This makes sense; the early evening is a time when many people leave their homes to eat out or do other activities throughout the city, while relatively few people will tend to be out of bed in the early morning. In the colder months, people will avoid going outside in the coldest parts of the day (the early morning) even more than usual; during the summer months, people may tend to stay out later in larger numbers than during the winter. 
+
+
+
+```{r time, echo=FALSE}
+
+renderPlot({
+  stopFrisk %>%
+  # first we find the date
+  mutate(date = mdy(STOP_FRISK_DATE),
+         hour = as.numeric(str_extract(`Stop Frisk Time`, "\\d*(?=:)")),
+         month = month(date)) %>%
+  # then split the date into month and hour of the day
+  # then collect months into seasons
+  mutate(Season = ifelse(month < 3, "Winter",
+                         ifelse(month == 12, "Winter",
+                                ifelse(month > 5, "Other",
+                                       ifelse(month < 9, "Summer", "Other"))))) %>%
+  filter(Season != "Other") %>%
+  drop_na(Season, hour) %>%
+  mutate(Season = as.factor(Season)) %>%
+  ggplot(aes(x = hour, fill = Season)) +
+    geom_bar(position = "dodge") +
+    labs(title = "Figure 1: Stop and Frisk Occurences by Hour of the Day in Winter and Summer") +
+    scale_fill_manual(values = c("pink", "dark blue"))
+})
+
+```
+
+To see how correct this guess is, we can look at the number of stops performed in 2018 over the course of the year. We can see that indeed, fewer stops are made during the winter months. In particular, December seems to be a low point for number of stops, which may be because it has many winter holidays which keep officers and people off the streets. One thing to note is that these trends in police stop-and-frisk occurrences might be explained by the natural ebb and flow of people being outside. On the other hand, it may be that police officers are more reluctant to stand outside searching for criminal activity in the winter months as compared to summer months, or that conditions such as icy roads or adverse weather conditions may impede the type of police activity that leads to stops. Further, it may be that similar numbers of people are on the streets in NYC in the early morning (it is the city that never sleeps, after all) but that the number of police officers outside at that time is diminished. Thus, if one wishes to avoid being stopped by police (for whatever reason), it may at first seem reasonable to sneak outside in the very early morning. However, it may be that among people outside at, say, 3:00 AM, a higher proportion of people are stopped by police as compared to people who are outside during the evening. Without data on when NYC residents tend to be outside in large numbers, it is difficult to draw any concrete conclusions about when people are most likely to be stopped. 
+
+
+
+```{r, echo=FALSE}
+renderPlot({
+  stopFrisk %>%
+  # first we find the date
+  # then we find the months from the date using lubridate
+  mutate(date = mdy(STOP_FRISK_DATE),
+         month = month(date),
+         # we want to make things more readable, so set "Y" to "Yes" and "N" to "No"
+         SUSPECT_ARRESTED_FLAG = ifelse(SUSPECT_ARRESTED_FLAG == "Y", "Yes", "No")) %>%
+  ggplot(aes(x = month, fill = SUSPECT_ARRESTED_FLAG)) +
+    geom_bar() +
+    labs(title = "Figure 2: Stop and Frisk Occurences by Month", 
+         fill = "Did the stop lead to an arrest?")
+})
+```
+
+If we then take the other viewpoint (trying to maximize stops that lead to an arrest), we can see that the arrest proportion for all times is relatively low (no more than 40%). Further, the difference in arrest rates across hours of the day is also relatively low, ranging from roughly 20% to roughly 35%. However, certain times do tend to be more arrest-prone than others. For example, the early morning (between 3:00 and 5:00 AM) has all the times with the highest proportion of arrests. If we consider that very few people are up and about at that time of day, this effect is compounded. Therefore, if what police officers want is to increase the number of stops in the way that best increases number of arrests, we can see that increasing efforts in the early morning is a good candidate for when that increase should be made.
+
+
+
+```{r, echo=FALSE}
+
+renderPlot({
+  stopFrisk %>%
+    mutate(date = mdy(STOP_FRISK_DATE),
+           hour = as.numeric(str_extract(`Stop Frisk Time`, "\\d*(?=:)")),
+           SEARCHED_FLAG = ifelse(SEARCHED_FLAG == "Y", "Yes", "No"),
+           SUSPECT_ARRESTED_FLAG = ifelse(SUSPECT_ARRESTED_FLAG == "Y", "Yes", "No")) %>%
+    drop_na(hour) %>%
+    group_by(hour) %>%
+    summarize(prop = sum(SUSPECT_ARRESTED_FLAG == "Yes")/n()) %>%
+    ggplot(aes(x = hour, y = prop)) +
+      geom_bar(stat = "identity") +
+      labs(title = "Figure 3: Proportion of Stops that lead to an Arrest by Hour of the Day")
+})
+
+```
+
+
+
+Taking a brief look at days of the week, there do appear to be fewer stops made on certain days of the week, namely Sundays and Mondays. However, there does not appear to be a pattern in stops by weekday beyond that fact, nor does there appear to be a strong pattern in when more arrests tend to be made. Again, it is difficult to determine what is responsible for this (lack of a) trend. One possible explanation is that while fewer people are out and about on Sundays and Mondays as compared to the rest of the week (which might apply to the police as well as the general population), neither number of people outside nor number of crimes committed vary that much by week day. 
+
+
+
+
+```{r, echo=FALSE}
+
+renderPlot({
+  stopFrisk %>%
+    # we want to make things more readable, so set "Y" to "Yes" and "N" to "No"
+    mutate(SUSPECT_ARRESTED_FLAG = ifelse(SUSPECT_ARRESTED_FLAG == "Y", "Yes", "No")) %>%
+    ggplot(aes(x = DAY2, fill = SUSPECT_ARRESTED_FLAG)) +
+      geom_bar() + 
+      labs(title = "FIgure 4: Stop and Frisk Occurences by Day of the Week",
+           x = "Day of the Week", 
+           fill = "Did the stop lead to an arrest?")
+})
+```
+
+
+### Race and Sex
+
+Much of the furor over the NYC stop-and-frisk policy (and similar policies elsewhere) is due to the perception of racial bias in how stops are carried out. We want to determine if evidence of this bias still exists in the 2018 data set. We first must consider what "evidence of racial bias" might be. One possible piece of evidence is a disproportionate number of stops performed on members of some community (as compared to that group's prevalence in the overall population). We know, for example, that the proportion of NYC that is African American is roughly 25% (NYCLU), and the proportion of Hispanic people is roughly 27%. If the proportion of those stopped who are African American or Hispanic is significantly higher than their proportions, we can determine that there is likely to be bias in what people are stopped by police. To answer this question, we first had to remove unrecorded values (nulls) from the data set. Then, we had to combine different "race descriptions" into racial groups. Finally, we simply need to count the number of individuals in each racial group.
+
+So what did we find? Well, as you can see in Figure 5, the largest racial group by far is "Black", followed by Hispanic people (both black and white Hispanic people). The proportion of African Americans in these data is roughly 57%, well above their proportion compared to the total population of NYC. For Hispanic people, the proportions are closer, with a 31% stop rate and a 27% proportion in the population. This indicates that both Hispanic and African American NYC residents may be overpoliced, although African Americans significantly more so (by this measure). Note that this is not a claim about the actual number of stops made for each racial group, merely a measure of the stops of a racial group as a proportion of the total number of stops. If we consider White people for a moment, we can see that their stop rate of roughly 10% is well below their proportion of the population of (roughly) 45%. This indicates a significant under-representation of white people in this data set. Drawing conclusions from this is difficult, however, as we don't have the evidence to say that white people are "under-policed".
+
+
+
+```{r suspect, fig.width=11, echo = FALSE}
+
+renderPlot({
+  stopFrisk %>%
+    drop_na(SUSPECT_RACE_DESCRIPTION) %>% # remove nulls
+    # some racial descriptions are overly detailed or too small to form meaningful conclusions from.
+    # oddly, these were the groups with longer names, so a simple heuristic splits the two desired types of
+    # "race description" from each other
+    mutate(simpleRace = ifelse(str_length(SUSPECT_RACE_DESCRIPTION) > 14, "OTHER", SUSPECT_RACE_DESCRIPTION)) %>% 
+    #combine black hispanic and white hispanic
+    mutate(simpleRace = ifelse(str_detect(simpleRace, "HISPANIC"), "HISPANIC", simpleRace)) %>%
+    ggplot(aes(x = simpleRace, fill = simpleRace)) +
+      geom_bar() + 
+      labs(title = "Figure 5: Number of People Stopped in 2018 by Race",
+           fill = "Race", y = "Race")
+})
+
+```
+
+Another possible measure is the proportion of arrests made among people of a certain group as compared to another. There are two possible uses for this information. If we knew the real crime rate among different groups, we could compare the arrest rate and the crime rate to see if there was bias in arrests. Unfortunately, we lack access to that data. Therefore, we must take the second approach, and consider the arrest rate as an indirect measure of the crime rate, keeping in mind that a bias which causes over-stopping is likely to also cause over-arresting. However, even with that caveat, ff the arrest rate for a certain group is comparable to another, but they are stopped at very different rates, we can say that there is an indication of bias in the occurrences of stop-and-frisks. 
+
+We can see in Figure 6 that the proportion of those stopped who are then arrested does not vary much in comparison to the variation of the number of stops performed on each group. All arrest rates are roughly the same, with Hispanic people having the highest at roughly 30%, and Other racial groups being the lowest at roughly 23%. This is important because, if we take arrest rates as a signal in crime rates, it indicates that there is little natural variation in actual crime rates across racial groups. This is further evidence that African American NYC residents are subjected to too many stops when compared to, say, white NYC residents.
+
+
+
+```{r, echo=FALSE}
+
+renderPlot({
+  stopFrisk %>% 
+    drop_na(SUSPECT_RACE_DESCRIPTION, SUSPECT_ARRESTED_FLAG) %>% # remove nulls
+    # some racial descriptions are overly detailed or too small to form meaningful conclusions from.
+    # oddly, these were the groups with longer names, so a simple heuristic splits the two desired types of
+    # "race description" from each other
+    mutate(simpleRace = ifelse(str_length(SUSPECT_RACE_DESCRIPTION) > 14, "OTHER", SUSPECT_RACE_DESCRIPTION),
+           # we also want to make things more readable, so set "Y" to "Yes" and "N" to "No"
+           SUSPECT_ARRESTED_FLAG = ifelse(SUSPECT_ARRESTED_FLAG == "Y", "Yes", "No")) %>% 
+    #combine black hispanic and white hispanic
+    mutate(simpleRace = ifelse(str_detect(simpleRace, "HISPANIC"), "HISPANIC", simpleRace)) %>%
+    group_by(simpleRace) %>%
+    # calculate proportion who are arrested
+    summarize(prop = sum(SUSPECT_ARRESTED_FLAG == "Yes")/n()) %>%
+    ggplot(aes(x = simpleRace, fill = simpleRace, y = prop)) +
+      geom_bar(stat = "identity") + 
+      labs(title = "Figure 6: Proportion of those Stopped by Police who were then Arrested in 2018",
+           fill = "Race",
+           y = "Race", x = "Proportion Arrested")
+})
+```
+
+As a quick aside, let us consider sex for a moment. Looking at Figure 7, we can see that the number of men stopped by police is much higher than the number of women so stopped. In fact, men make up roughly 91% of this data set, which is very different from the roughly 50% of NYC residents who are male. Further, if we consider the ratio of stops to arrests for men and women as we did for race, we can see that the proportion of women stopped who are then arrested is roughly 31%, slightly higher than the same proportion for men at roughly 28%. Therefore, we can conclude that there is reason to suspect that men are overpoliced, as compared to women.
+
+
+
+
+```{r, echo=FALSE}
+
+renderPlot({
+  stopFrisk %>%
+    # we want to make things more readable, so set "Y" to "Yes" and "N" to "No"
+    mutate(SUSPECT_ARRESTED_FLAG = ifelse(SUSPECT_ARRESTED_FLAG == "Y", "Yes", "No")) %>%
+    drop_na(SUSPECT_SEX) %>%
+    ggplot(aes(x = SUSPECT_SEX, fill = SUSPECT_ARRESTED_FLAG)) +
+      geom_bar() +
+      labs(title = "Figure 7: Number of Men and Women stopped or arrested in 2018",
+           y = "Suspect Sex",
+           fill = "Were they arrested?")
+})
+
+```
+
+
+### Location
+
+Another consideration one might make is where stops and arrests tend to occur. Note that "NA" here means "not recorded", which is useful information we should display, as it shows where police might not record information thoroughly. You can use the following interactive infographic to see how stops and searches vary geographically, then read on to find our analysis.
+
+A simple analysis shows that there is a large group of stops, and in those groups, most of those stopped are Hispanic or African American. This suggests that part of the reason those races are so over-represented is where police stops usually take place.
+
+```{r, include = FALSE}
+stopFrisk <- read_csv("stopFrisk.csv")
+
+```
+
+
+```{r, echo=FALSE}
+inputPanel(
+  selectInput("Color", label = "Color points by...", 
+             choices = c("Suspect Race" = "SUSPECT_RACE_DESCRIPTION",
+                         "Suspect Sex" = "SUSPECT_SEX",
+                         "Suspect Searched" = "SEARCHED_FLAG",
+                         "Suspect Arrested" = "SUSPECT_ARRESTED_FLAG"))
+)
+renderPlot({
+  stopFrisk %>%
+    drop_na(STOP_LOCATION_X, STOP_LOCATION_Y) %>%
+    ggplot(aes(x = STOP_LOCATION_X, y = STOP_LOCATION_Y)) +
+      geom_point(aes_string(color = input$Color))
+})
+
+
+```
+Coordinate information from the NYCLU data illustrate stop and frisk incidences occur at a far higher density in Brooklyn, Manhattan, and the Bronx than in in Staten Island or Queens. 
+```{r, include = FALSE}
+sf_spatial <- stopFrisk %>% 
+  select(STOP_FRISK_ID, STOP_WAS_INITIATED, ISSUING_OFFICER_RANK,
+         SUPERVISING_OFFICER_RANK, JURISDICTION_CODE, JURISDICTION_DESCRIPTION, SUSPECTED_CRIME_DESCRIPTION,
+         OFFICER_EXPLAINED_STOP_FLAG, OTHER_PERSON_STOPPED_FLAG, SUSPECT_ARRESTED_FLAG, 
+         SUSPECT_ARREST_OFFENSE, SUMMONS_ISSUED_FLAG, OFFICER_IN_UNIFORM_FLAG, FRISKED_FLAG, 
+         SEARCHED_FLAG, OTHER_CONTRABAND_FLAG, WEAPON_FOUND_FLAG, PHYSICAL_FORCE_VERBAL_INSTRUCTION_FLAG,
+         DEMEANOR_CODE, DEMEANOR_OF_PERSON_STOPPED, SUSPECT_REPORTED_AGE, SUSPECT_SEX, 
+         SUSPECT_RACE_DESCRIPTION, SUSPECT_HEIGHT, SUSPECT_WEIGHT, SUSPECT_BODY_BUILD_TYPE, 
+         SUSPECT_EYE_COLOR, SUSPECT_HAIR_COLOR, STOP_LOCATION_PRECINCT, STOP_LOCATION_STREET_NAME,
+         STOP_LOCATION_X, STOP_LOCATION_Y, STOP_LOCATION_PATROL_BORO_NAME, 
+         STOP_LOCATION_BORO_NAME, STOP_LOCATION_FULL_ADDRESS)
+class(sf_spatial$STOP_LOCATION_BORO_NAME)
+levels(sf_spatial$STOP_LOCATION_BORO_NAME)
+```
+
+```{r, include = FALSE}
+levels(sf_spatial$SUSPECT_RACE_DESCRIPTION)
+sf_spatial$SUSPECT_RACE_DESCRIPTION <-
+  recode_factor(sf_spatial$SUSPECT_RACE_DESCRIPTION, "(null)" = "NA", 
+                "AMERICAN INDIAN/ALASKAN NATIVE" = "American Indian/Alaskan Native", 
+                "ASIAN / PACIFIC ISLANDER" = "Asian/Pacific Islander", 
+                "BLACK" = "Black", "BLACK HISPANIC" = "Black Hispanic", 
+                "WHITE" = "White", "WHITE HISPANIC" = "White Hispanic") 
+levels(sf_spatial$SUSPECT_RACE_DESCRIPTION)
+```
+
+```{r, echo = FALSE}
+renderPlot({
+  ggplot(data = sf_spatial) + 
+   geom_point(aes(x = STOP_LOCATION_X, y = STOP_LOCATION_Y, 
+                   color = STOP_LOCATION_BORO_NAME)) +
+    theme(axis.title.x=element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank()) +
+    ggtitle("Stop Locations by New York City Borough")
+})
+```
+  
+  From the Furman Center (https://furmancenter.org/files/sotc/The_Changing_Racial_and_Ethnic_Makeup_of_New_York_City_Neighborhoods_11.pdf), Staten Island and Queens both have higher proportions of white residents while Brooklyn and the Bronx have larger proportions of black and hispanic populations. The discrepancy in density of stop and frisk locations displayed may therefore point to 1) the tendency to more heavily patrol majority black and hispanic neighborhoods and/or 2) the tendency to more readily stop and frisk black and hispanic individuals as opposed to white or Asian individuals. Indeed, northeastern Queens has the largest proportion of Asian residents and has far lower density of stop and frisk incidences than the Bronx, Manhattan, or Brooklyn. The interactive plot below illustrates that white hispanic and black individuals account for a larger proportion of stops throughout all five boroughs than other ethnic groups. This supports the arguments and findings of many the NYCLU that stop and frisk procedures target black and brown communities at higher rates than white or Asian communities: Staten Island and Queens have larger proportions of white/Asian residents and lower density of stop and frisk incidents, and across all boroughs, white hispanic and black individuals are stopped and frisked more frequently than white or Asian individuals.
+ 
+```{r, echo = FALSE}
+plot <- ggplot(data = sf_spatial) +
+  geom_point(position = position_jitterdodge(jitter.width = 0.3, jitter.height = 0.3),
+            aes(x = STOP_LOCATION_X, y = STOP_LOCATION_Y, color = SUSPECT_RACE_DESCRIPTION)) +
+  xlab("Longitude") + ylab("Latitude") + ggtitle("Suspect Race by Stop Location - NYC") +
+  scale_colour_discrete(name="Suspect Race",
+        breaks=c("(null)", "AMERICAN INDIAN/ALASKA NATIVE", "ASIAN / PACIFIC ISLANDER",
+                 "BLACK", "BLACK HISPANIC", "WHITE", "WHITE HISPANIC"), 
+        labels = c("Null", "American Indian/Alaska Native", "Asian/Pacific Islander",
+                   "Black", "Black Hispanic", "White", "White Hispanic")) +
+  theme(axis.title.x=element_blank(),
+      axis.text.x = element_blank(),
+      axis.ticks.x=element_blank(),
+      axis.title.y = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks.y = element_blank())
+ggplotly(plot)
+```
+
+
+### Predicting arrests.
+
+  We have a simple decision tree which predicts who will be arrested. This may, for example, help police officers better target stops to those who are most likely to later be arrested. If successful, this would reduce police workload as well as unneeded friction between the police and the population they serve. Thus, we only use those predictors which the police could be expected to observe before a stop is made, such as stop location and suspected crime.
+
+However, as you can see, suspected crime is the most important factor the tree considers. This holds up even if we slightly change which predictors the tree can access. Thus, police officers should limit their stops based on what type of crime they suspect a person (or group) of committing.
+
+
+```{r predict, include = FALSE}
+
+# first re-collect the data to avoid problems with data cleaning done earlier in the file
+data <- read_csv("stopFrisk.csv") %>%
+  # We will assume that a null represents no arrest
+  mutate(class = ifelse(SUSPECT_ARRESTED_FLAG %in% c(NA, "(null)", "N"), "N", "Y"))
+
+set.seed(674991)
+# get the training and testing sets.
+train_ind <- sample(nrow(data), floor(0.8*nrow(data)))
+train <- slice(data, train_ind)
+test <- slice(data, -train_ind)
+
+# train a decision tree on some reasonable predictors
+DT <- rpart(
+  class ~ OBSERVED_DURATION_MINUTES +
+    SUSPECTED_CRIME_DESCRIPTION + OTHER_PERSON_STOPPED_FLAG + 
+    SUSPECT_REPORTED_AGE + SUSPECT_RACE_DESCRIPTION +
+    STOP_LOCATION_PRECINCT + STOP_LOCATION_BORO_NAME,
+  data = data
+)
+```
+
+
+```{r, echo=FALSE}
+# plot the DT
+
+renderPlot({
+  plot(as.party(DT), type = "simple")
+})
+```
+
+### Predicting frisks.
+
+  In addition to predicting factors that may lead to arrests, we can also use a decision tree to predict which characteristics relating to location and demographic factors may lead to an individual being frisked at a stop. This is important as it can help police and citizens to understand which factors may be associated with frisking due to racial biases. Because we are most interested in race and demographic factors, we look at race, build, and borough. Using this decision tree, we see that borough location takes precedence over race in determining stop and frisk. Individuals in the Bronx, Brooklyn, and Queens arelikely to be frisked at a stop (error = 36.7%) while individuals in Manhattan and Staten Island are are less often frisked. While this first division comes from a locational variable, it can still be tied to racial biases - as noted above, the Bronx and Brooklyn have higher proportions of black and hispanic residents. Queens's inclusion in the "Yes" frisk is slightly more surprising given its high percentage of white and Asian residents; however, this may point to the fact that black and brown people in Queens have a higher likelihood of being stopped because they seem "out of place" (that is, due to police racism). 
+  Stops in Manhattan and Staten Island result in frisks for American Indian/Alaskan Native, black, black hispanic, and white hispanic individuals (error = 49%), while white and Asian/Pacific Islander invididuals are not frisked at stops (error = 36.9%). This is in line with expectations for Staten Island: because the population in that borough is mostly white, police may perceive people of color there as being "out of place" and would choose to frisk them for that reason. Conversely, white residents would seem "in place" and would be less likely to be frisked. Manhattan is slightly more surprising: its population is less homogenous than Staten Island (white) or the Bronx and Brooklyn (black and hispanic). Given Manhattan's popularity as a work and tourism location, it may be the case that police are inherently more likely to act on racial biases and frisk any person they view as suspicious (and more often, this would be black and hispanic people).
+```{r predict_frisk, include = FALSE}
+#training/test data: 
+data2 <- sf_spatial %>%
+  # We will assume that a null represents no frisk
+  mutate(class = ifelse(FRISKED_FLAG %in% c(NA, "(null)", "N"), "N", "Y"))
+set.seed(20200315)
+train_ind2 <- sample(nrow(data2), floor(0.8*nrow(data)))
+train2 <- slice(data2, train_ind)
+test2 <- slice(data2, -train_ind)
+set.seed(20200315)
+```
+
+```{r, include = FALSE}
+library(rpart)
+library(partykit)
+sf_rpart <- rpart(
+  FRISKED_FLAG ~ SUSPECT_RACE_DESCRIPTION + STOP_LOCATION_BORO_NAME + SUSPECT_BODY_BUILD_TYPE,
+  data = train2
+)
+sf_rpart
+```
+
+```{r, echo=FALSE}
+renderPlot({
+  plot(as.party(sf_rpart), type = "simple")
+})
+```
+
+
+
+### Conclusion
+
+From our investigation, we found that the number and proportion of stops depend on the time of day, in a pattern that varies according to the season, with colder months generally having fewer stops (especially in the early morning). We also find that there is a disproportionately high number of stops performed on African American (and to a lesser degree, Hispanic) residents of NYC, despite the fact that these stops do not have a higher proportion of arrests per stop than for other racial groups. Finally, we noticed that stops tend to occur in certain boroughs of NYC, and that this may explain (in part) why so many African Americans were stopped in 2018. Predictive models suggest that the likelihood of frisking or arrest at a stop is related to location and suspected crime. Both of these variables can be tied to police bias relating to racism. Boroughs with larger proportions of black and hispanic residents see greater incidences of stops and higher rates of frisking at stops. Further, black and hispanic residents in boroughs that have higher proportions of white and/or Asian/Pacific Islander residents are more likely to be stopped and frisked than white/Asian individuals. Therefore, our investigation illustrates patterns in New York City stop and frisk incidents relating to spacial, temporal, and racial factors.
+
+

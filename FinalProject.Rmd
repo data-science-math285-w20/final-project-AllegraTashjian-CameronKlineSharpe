@@ -43,6 +43,8 @@ This data, as it was collected and reported by humans about humans, is somewhat 
 
 ### Results
 
+#### Time of Stops
+
 Let us first consider when people are most likely to get stopped. From the perspective of police officer, it would be nice to determine when stops are most likely to lead to arrests. However, from the perspective of an ordinary citizen, it would be nice to avoid having to be stop-and-frisked by a police officer. Thus, we will consider both perspectives.
 
 Let us first consider when in the day stops tend to occur. The number of stops performed by police does seem to vary by time of day, but we were curious to see if the pattern of stops would change based on the season. So, we split up months into winter, summer, and other months, and considered the number of stops made by hour of the day in winter and summer months. On close examination, we can see that there is a noticeable peak in stops during the early evening, although the exact time varies according to the time of year. In the winter, the peak time tends to be roughly 5:00 PM, while in the summer, the peak is a few hours later. Furthermore, there is also a consistent dip in the number of stops in the very early morning, although that dip is more pronounced in the cooler months. This makes sense; the early evening is a time when many people leave their homes to eat out or do other activities throughout the city, while relatively few people will tend to be out of bed in the early morning. In the colder months, people will avoid going outside in the coldest parts of the day (the early morning) even more than usual; during the summer months, people may tend to stay out later in larger numbers than during the winter. 
@@ -221,7 +223,7 @@ renderPlot({
 
 Another consideration one might make is where stops and arrests tend to occur. Note that "NA" here means "not recorded", which is useful information we should display, as it shows where police might not record information thoroughly. You can use the following interactive infographic to see how stops and searches vary geographically, then read on to find our analysis.
 
-A simple analysis shows that there is a large group of stops, and in those groups, most of those stopped are Hispanic or African American. This suggests that part of the reason those races are so over-represented is where police stops usually take place.
+A simple analysis shows that there are several large groupings of stops, and in those groups, most of those stopped are Hispanic or African American. This suggests that part of the reason those races are so over-represented is where police stops usually take place.
 
 ```{r, include = FALSE}
 stopFrisk <- read_csv("stopFrisk.csv")
@@ -315,7 +317,7 @@ ggplotly(plot)
 
   We have a simple decision tree which predicts who will be arrested. This may, for example, help police officers better target stops to those who are most likely to later be arrested. If successful, this would reduce police workload as well as unneeded friction between the police and the population they serve. Thus, we only use those predictors which the police could be expected to observe before a stop is made, such as stop location and suspected crime.
 
-However, as you can see, suspected crime is the most important factor the tree considers. This holds up even if we slightly change which predictors the tree can access. Thus, police officers should limit their stops based on what type of crime they suspect a person (or group) of committing.
+However, as you can see, suspected crime is the most important (and indeed, the only) factor the tree considers. This holds up even if we slightly change which predictors the tree can access. While our model is not extremely accurate, it still may indicate that police officers should base their stops based largely on what type of crime they suspect a person (or group) of committing.
 
 
 ```{r predict, include = FALSE}
@@ -386,6 +388,6 @@ renderPlot({
 
 ### Conclusion
 
-From our investigation, we found that the number and proportion of stops depend on the time of day, in a pattern that varies according to the season, with colder months generally having fewer stops (especially in the early morning). We also find that there is a disproportionately high number of stops performed on African American (and to a lesser degree, Hispanic) residents of NYC, despite the fact that these stops do not have a higher proportion of arrests per stop than for other racial groups. Finally, we noticed that stops tend to occur in certain boroughs of NYC, and that this may explain (in part) why so many African Americans were stopped in 2018. Predictive models suggest that the likelihood of frisking or arrest at a stop is related to location and suspected crime. Both of these variables can be tied to police bias relating to racism. Boroughs with larger proportions of black and hispanic residents see greater incidences of stops and higher rates of frisking at stops. Further, black and hispanic residents in boroughs that have higher proportions of white and/or Asian/Pacific Islander residents are more likely to be stopped and frisked than white/Asian individuals. Therefore, our investigation illustrates patterns in New York City stop and frisk incidents relating to spacial, temporal, and racial factors.
+From our investigation, we found that the number and proportion of stops depend on the time of day, in a pattern that varies according to the season, with colder months generally having fewer stops (especially in the early morning). We also find that there is a disproportionately high number of stops performed on African American (and to a lesser degree, Hispanic) residents of NYC, despite the fact that these stops do not have a higher proportion of arrests per stop than for other racial groups. Finally, we noticed that stops tend to occur in certain boroughs of NYC, and that this may explain (in part) why so many African Americans were stopped in 2018. Boroughs with larger proportions of black and hispanic residents see greater incidences of stops and higher rates of frisking at stops. Further, black and hispanic residents in boroughs that have higher proportions of white and/or Asian/Pacific Islander residents are more likely to be stopped and frisked than white/Asian individuals. Our predictive models suggest that the likelihood of frisking or arrest at a stop is related to location and suspected crime. Both of these variables can be tied to police bias relating to racial group or sex. Therefore, our investigation illustrates patterns in New York City stop and frisk incidents relating to spacial, temporal, and racial factors, and indicates that despite the efforts of activists, there are still indications that the racial bias of police officers is still playing a major role in who is stopped.
 
 

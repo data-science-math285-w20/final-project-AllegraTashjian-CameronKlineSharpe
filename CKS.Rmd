@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Math-285: Stop-and-Frisk In NYC"
 output: html_notebook
 runtime: shiny
 ---
@@ -47,6 +47,7 @@ Let us first consider when people are most likely to get stopped. From the persp
 Let us first consider when in the day stops tend to occur. The number of stops performed by police does seem to vary by time of day, but we were curious to see if the pattern of stops would change based on the season. So we split up months into winter, summer, and other months, and considered the number of stops made by hour of the day in winter and summer months. On close examination, we can see that there is a noticeable peak in stops during the early evening, although the exact time varies according to the time of year. In the winter, the peak time tends to be roughly 5:00 PM, while in the summer, the peak is a few hours later. Furthermore, there is also a consistent dip in the number of stops in the very early morning, although that dip is more pronounced in the cooler months. This makes sense; the early evening is a time when many people leave their homes to eat out or do other activities throughout the city, while relatively few people will tend to be out of bed in the early morning. In the colder months, people will avoid going outside in the coldest parts of the day (the early morning) even more than usual; during the summer months, people may tend to stay out later in larger numbers than during the winter. 
 
 
+
 ```{r time, echo=FALSE}
 
 renderPlot({
@@ -74,6 +75,8 @@ renderPlot({
 
 To see how correct this guess is, we can look at the number of stops performed in 2018 over the course of the year. We can see that indeed, fewer stops are made during the winter months. In particular, December seems to be a low point for number of stops, which may be because it has many winter holidays which keep officers and people off the streets. One thing to note is that these trends in police stop-and-frisk occurrences might be explained by the natural ebb and flow of people being outside. On the other hand, it may be that police officers are more reluctant to stand outside searching for criminal activity in the winter months as compared to summer months, or that conditions such as icy roads or adverse weather conditions may impede the type of police activity that leads to stops. Further, it may be that similar numbers of people are on the streets in NYC in the early morning (it is the city that never sleeps, after all) but that the number of police officers outside at that time is diminished. Thus, if one wishes to avoid being stopped by police (for whatever reason), it may at first seem reasonable to sneak outside in the very early morning. However, it may be that among people outside at, say, 3:00 AM, a higher proportion of people are stopped by police as compared to people who are outside during the evening. Without data on when NYC residents tend to be outside in large numbers, it is difficult to draw any concrete conclusions about when people are most likely to be stopped. 
 
+
+
 ```{r, echo=FALSE}
 renderPlot({
   stopFrisk %>%
@@ -91,6 +94,8 @@ renderPlot({
 ```
 
 If we then take the other viewpoint (trying to maximize stops that lead to an arrest), we can see that the arrest proportion for all times is relatively low (no more than 40%). Further, the difference in arrest rates across hours of the day is also relatively low, ranging from roughly 20% to roughly 35%. However, certain times do tend to be more arrest-prone than others. For example, the early morning (between 3:00 and 5:00 AM) has all the times with the highest proportion of arrests. If we consider that very few people are up and about at that time of day, this effect is compounded. Therefore, if what police officers want is to increase the number of stops in the way that best increases number of arrests, we can see that increasing efforts in the early morning is a good candidate for when that increase should be made.
+
+
 
 ```{r, echo=FALSE}
 
@@ -113,6 +118,8 @@ renderPlot({
 
 
 Taking a brief look at days of the week, there do appear to be fewer stops made on certain days of the week, namely Sundays and Mondays. However, there does not appear to be a pattern in stops by week day beyond that fact, nor does there appear to be a strong pattern in when more arrests tend to be made. Again, it is difficult to determine what is responsible for this (lack of a) trend. One possible explanation is that while fewer people are out and about on Sundays and Mondays as compared to the rest of the week (which might apply to the police as well as the general population), neither number of people outside nor number of crimes commited vary that much by week day. 
+
+
 
 
 ```{r, echo=FALSE}
@@ -161,6 +168,8 @@ Another possible measure is the proportion of arrests made among people of a cer
 
 We can see in Figure 6 that the proportion of those stopped who are then arrested does not vary much in comparison to the variation of the number of stops performed on each group. All arrest rates are roughly the same, with Hispanic people having the highest at roughly 30%, and Other racial groups being the lowest at roughly 23%. This is important because, if we take arrest rates as a signal in crime rates, it indicates that there is little natural variation in actual crime rates across racial groups. This is further evidence that African American NYC residents are subjected to too many stops when compared to, say, white NYC residents.
 
+
+
 ```{r, echo=FALSE}
 
 renderPlot({
@@ -186,6 +195,8 @@ renderPlot({
 ```
 
 As a quick aside, let us consider sex for a moment. Looking at Figure 7, we can see that the number of men stopped by police is much higher than the number of women so stopped. In fact, men make up roughly 91% of this data set, which is very different from the rougly 50% of NYC residents who are male. Further, if we consider the ratio of stops to arrests for men and women as we did for race, we can see that the proportion of women stopped who are then arrested is roughly 31%, slightly higher than the same proportion for men at roughly 28%. Therefore, we can conclude that there is reason to suspect that men are overpoliced, as compared to women.
+
+
 
 
 ```{r, echo=FALSE}
@@ -293,10 +304,16 @@ From our investigation, we found that the number and proportion of stops depend 
 
 
 
+.
 
 
 
 
 
+.
 
 
+
+
+
+.

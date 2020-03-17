@@ -1,6 +1,7 @@
 ---
 title: "R Notebook"
 output: html_notebook
+runtime: shiny
 ---
 
 ```{r packages, include=FALSE}
@@ -9,11 +10,11 @@ library(lubridate)
 library(caret)
 library(rpart)
 library(partykit)
-
+library(shiny)
 knitr::opts_chunk$set(echo=FALSE, fig.width = 10)
 ```
 
-```{r getData, include = FALSE}
+```{r getData, include=FALSE}
 stopFrisk <- read_csv("stopFrisk.csv")
 
 stopFrisk <- stopFrisk %>%
@@ -47,7 +48,15 @@ Let us first consider when in the day stops tend to occur. The number of stops p
 
 
 ```{r time, echo=FALSE}
-stopFrisk %>%
+
+renderPlot({
+  stopFrisk %>%
+  # first we find the date
+  mutate(date = mdy(STOP_FRISK_DATE),
+         hour = as.numeric(str_extract(`Stop Frisk Time`, "\\d*(?=:)")),
+         month = month(date)) %>%
+  # then split the date into month and hour of the day
+  # then collect months into seasons
   mutate(Season = ifelse(month < 3, "Winter",
                          ifelse(month == 12, "Winter",
                                 ifelse(month > 5, "Other",
@@ -59,28 +68,46 @@ stopFrisk %>%
     geom_bar(position = "dodge") +
     labs(title = "Figure 1: Stop and Frisk Occurences by Hour of the Day in Winter and Summer") +
     scale_fill_manual(values = c("pink", "dark blue"))
+})
 
 ```
 
 To see how correct this guess is, we can look at the number of stops performed in 2018 over the course of the year. We can see that indeed, fewer stops are made during the winter months. In particular, December seems to be a low point for number of stops, which may be because it has many winter holidays which keep officers and people off the streets. One thing to note is that these trends in police stop-and-frisk occurrences might be explained by the natural ebb and flow of people being outside. On the other hand, it may be that police officers are more reluctant to stand outside searching for criminal activity in the winter months as compared to summer months, or that conditions such as icy roads or adverse weather conditions may impede the type of police activity that leads to stops. Further, it may be that similar numbers of people are on the streets in NYC in the early morning (it is the city that never sleeps, after all) but that the number of police officers outside at that time is diminished. Thus, if one wishes to avoid being stopped by police (for whatever reason), it may at first seem reasonable to sneak outside in the very early morning. However, it may be that among people outside at, say, 3:00 AM, a higher proportion of people are stopped by police as compared to people who are outside during the evening. Without data on when NYC residents tend to be outside in large numbers, it is difficult to draw any concrete conclusions about when people are most likely to be stopped. 
 
 ```{r, echo=FALSE}
-ggplot(stopFrisk, aes(x = month, fill = SUSPECT_ARRESTED_FLAG)) +
-  geom_bar() +
-  labs(title = "Figure 2: Stop and Frisk Occurences by Month", 
-       fill = "Did the stop lead to an arrest?")
+renderPlot({
+  stopFrisk %>%
+  # first we find the date
+  # then we find the months from the date using lubridate
+  mutate(date = mdy(STOP_FRISK_DATE),
+         month = month(date),
+         # we want to make things more readable, so set "Y" to "Yes" and "N" to "No"
+         SUSPECT_ARRESTED_FLAG = ifelse(SUSPECT_ARRESTED_FLAG == "Y", "Yes", "No")) %>%
+  ggplot(aes(x = month, fill = SUSPECT_ARRESTED_FLAG)) +
+    geom_bar() +
+    labs(title = "Figure 2: Stop and Frisk Occurences by Month", 
+         fill = "Did the stop lead to an arrest?")
+})
 ```
 
 If we then take the other viewpoint (trying to maximize stops that lead to an arrest), we can see that the arrest proportion for all times is relatively low (no more than 40%). Further, the difference in arrest rates across hours of the day is also relatively low, ranging from roughly 20% to roughly 35%. However, certain times do tend to be more arrest-prone than others. For example, the early morning (between 3:00 and 5:00 AM) has all the times with the highest proportion of arrests. If we consider that very few people are up and about at that time of day, this effect is compounded. Therefore, if what police officers want is to increase the number of stops in the way that best increases number of arrests, we can see that increasing efforts in the early morning is a good candidate for when that increase should be made.
 
 ```{r, echo=FALSE}
-stopFrisk %>%
-  drop_na(hour) %>%
-  group_by(hour) %>%
-  summarize(prop = sum(SUSPECT_ARRESTED_FLAG == "Yes")/n()) %>%
-  ggplot(aes(x = hour, y = prop)) +
-    geom_bar(stat = "identity") +
-    labs(title = "Figure 3: Proportion of Stops that lead to an Arrest by Hour of the Day")
+
+renderPlot({
+  stopFrisk %>%
+    mutate(date = mdy(STOP_FRISK_DATE),
+           hour = as.numeric(str_extract(`Stop Frisk Time`, "\\d*(?=:)")),
+           SEARCHED_FLAG = ifelse(SEARCHED_FLAG == "Y", "Yes", "No"),
+           SUSPECT_ARRESTED_FLAG = ifelse(SUSPECT_ARRESTED_FLAG == "Y", "Yes", "No")) %>%
+    drop_na(hour) %>%
+    group_by(hour) %>%
+    summarize(prop = sum(SUSPECT_ARRESTED_FLAG == "Yes")/n()) %>%
+    ggplot(aes(x = hour, y = prop)) +
+      geom_bar(stat = "identity") +
+      labs(title = "Figure 3: Proportion of Stops that lead to an Arrest by Hour of the Day")
+})
+
 ```
 
 
@@ -89,11 +116,17 @@ Taking a brief look at days of the week, there do appear to be fewer stops made 
 
 
 ```{r, echo=FALSE}
-ggplot(stopFrisk, aes(x = DAY2, fill = SUSPECT_ARRESTED_FLAG)) +
-  geom_bar() + 
-  labs(title = "FIgure 4: Stop and Frisk Occurences by Day of the Week",
-       x = "Day of the Week", 
-       fill = "Did the stop lead to an arrest?")
+
+renderPlot({
+  stopFrisk %>%
+    # we want to make things more readable, so set "Y" to "Yes" and "N" to "No"
+    mutate(SUSPECT_ARRESTED_FLAG = ifelse(SUSPECT_ARRESTED_FLAG == "Y", "Yes", "No")) %>%
+    ggplot(aes(x = DAY2, fill = SUSPECT_ARRESTED_FLAG)) +
+      geom_bar() + 
+      labs(title = "FIgure 4: Stop and Frisk Occurences by Day of the Week",
+           x = "Day of the Week", 
+           fill = "Did the stop lead to an arrest?")
+})
 ```
 
 
@@ -106,18 +139,21 @@ So what did we find? Well, as you can see in Figure 5, the largest racial group 
 
 
 ```{r suspect, fig.width=11, echo = FALSE}
-stopFrisk %>%
-  drop_na(SUSPECT_RACE_DESCRIPTION) %>% # remove nulls
-  # some racial descriptions are overly detailed or too small to form meaningful conclusions from.
-  # oddly, these were the groups with longer names, so a simple heuristic splits the two desired types of
-  # "race description" from each other
-  mutate(simpleRace = ifelse(str_length(SUSPECT_RACE_DESCRIPTION) > 14, "OTHER", SUSPECT_RACE_DESCRIPTION)) %>% 
-  #combine black hispanic and white hispanic
-  mutate(simpleRace = ifelse(str_detect(simpleRace, "HISPANIC"), "HISPANIC", simpleRace)) %>%
-  ggplot(aes(x = simpleRace, fill = simpleRace)) +
-    geom_bar() + 
-    labs(title = "Figure 5: Number of People Stopped in 2018 by Race")
 
+renderPlot({
+  stopFrisk %>%
+    drop_na(SUSPECT_RACE_DESCRIPTION) %>% # remove nulls
+    # some racial descriptions are overly detailed or too small to form meaningful conclusions from.
+    # oddly, these were the groups with longer names, so a simple heuristic splits the two desired types of
+    # "race description" from each other
+    mutate(simpleRace = ifelse(str_length(SUSPECT_RACE_DESCRIPTION) > 14, "OTHER", SUSPECT_RACE_DESCRIPTION)) %>% 
+    #combine black hispanic and white hispanic
+    mutate(simpleRace = ifelse(str_detect(simpleRace, "HISPANIC"), "HISPANIC", simpleRace)) %>%
+    ggplot(aes(x = simpleRace, fill = simpleRace)) +
+      geom_bar() + 
+      labs(title = "Figure 5: Number of People Stopped in 2018 by Race",
+           fill = "Race", y = "Race")
+})
 
 ```
 
@@ -127,33 +163,82 @@ We can see in Figure 6 that the proportion of those stopped who are then arreste
 
 ```{r, echo=FALSE}
 
-stopFrisk %>%
-  drop_na(SUSPECT_RACE_DESCRIPTION, SUSPECT_ARRESTED_FLAG) %>% # remove nulls
-  # some racial descriptions are overly detailed or too small to form meaningful conclusions from.
-  # oddly, these were the groups with longer names, so a simple heuristic splits the two desired types of
-  # "race description" from each other
-  mutate(simpleRace = ifelse(str_length(SUSPECT_RACE_DESCRIPTION) > 14, "OTHER", SUSPECT_RACE_DESCRIPTION)) %>% 
-  #combine black hispanic and white hispanic
-  mutate(simpleRace = ifelse(str_detect(simpleRace, "HISPANIC"), "HISPANIC", simpleRace)) %>%
-  group_by(simpleRace) %>%
-  # calculate proportion who are arrested
-  summarize(prop = sum(SUSPECT_ARRESTED_FLAG == "Yes")/n()) %>%
-  ggplot(aes(x = simpleRace, fill = simpleRace, y = prop)) +
-    geom_bar(stat = "identity") + 
-    labs(title = "Figure 7: Proportion of those Stopped by Police who are Arrested in 2018")
+renderPlot({
+  stopFrisk %>% 
+    drop_na(SUSPECT_RACE_DESCRIPTION, SUSPECT_ARRESTED_FLAG) %>% # remove nulls
+    # some racial descriptions are overly detailed or too small to form meaningful conclusions from.
+    # oddly, these were the groups with longer names, so a simple heuristic splits the two desired types of
+    # "race description" from each other
+    mutate(simpleRace = ifelse(str_length(SUSPECT_RACE_DESCRIPTION) > 14, "OTHER", SUSPECT_RACE_DESCRIPTION),
+           # we also want to make things more readable, so set "Y" to "Yes" and "N" to "No"
+           SUSPECT_ARRESTED_FLAG = ifelse(SUSPECT_ARRESTED_FLAG == "Y", "Yes", "No")) %>% 
+    #combine black hispanic and white hispanic
+    mutate(simpleRace = ifelse(str_detect(simpleRace, "HISPANIC"), "HISPANIC", simpleRace)) %>%
+    group_by(simpleRace) %>%
+    # calculate proportion who are arrested
+    summarize(prop = sum(SUSPECT_ARRESTED_FLAG == "Yes")/n()) %>%
+    ggplot(aes(x = simpleRace, fill = simpleRace, y = prop)) +
+      geom_bar(stat = "identity") + 
+      labs(title = "Figure 6: Proportion of those Stopped by Police who were then Arrested in 2018",
+           fill = "Race",
+           y = "Race", x = "Proportion Arrested")
+})
 ```
 
 As a quick aside, let us consider sex for a moment. Looking at Figure 7, we can see that the number of men stopped by police is much higher than the number of women so stopped. In fact, men make up roughly 91% of this data set, which is very different from the rougly 50% of NYC residents who are male. Further, if we consider the ratio of stops to arrests for men and women as we did for race, we can see that the proportion of women stopped who are then arrested is roughly 31%, slightly higher than the same proportion for men at roughly 28%. Therefore, we can conclude that there is reason to suspect that men are overpoliced, as compared to women.
 
 
 ```{r, echo=FALSE}
-stopFrisk %>%
-  drop_na(SUSPECT_SEX) %>%
-  ggplot(aes(x = SUSPECT_SEX, fill = SUSPECT_ARRESTED_FLAG)) +
-    geom_bar() +
-    labs(title = "Figure : Number of Men and Women stopped or arrested in 2018")
+
+renderPlot({
+  stopFrisk %>%
+    # we want to make things more readable, so set "Y" to "Yes" and "N" to "No"
+    mutate(SUSPECT_ARRESTED_FLAG = ifelse(SUSPECT_ARRESTED_FLAG == "Y", "Yes", "No")) %>%
+    drop_na(SUSPECT_SEX) %>%
+    ggplot(aes(x = SUSPECT_SEX, fill = SUSPECT_ARRESTED_FLAG)) +
+      geom_bar() +
+      labs(title = "Figure 7: Number of Men and Women stopped or arrested in 2018",
+           y = "Suspect Sex",
+           fill = "Were they arrested?")
+})
 
 ```
+
+
+### Location
+
+This was meant to be Allegra's part of the work, so I have not done much here. We were planning on having the interactive graphic here, so I have added a simple placeholder in case things go awry.
+
+
+Another Consideration one might make is where stops and arrests tend to occur. Note that "NA" here means "not recorded", which is useful information we should dispay, as it shows where police might not record information thoroughly. Use the following interactive infographic to find that out for yourselves!
+
+A simple analysis shows that there is a large group of stops, and in those groups, most of those stopped are Hispanic or African American. This suggests that part of the reason those races are so over-represented is where police stops usually take place.
+
+```{r, include = FALSE}
+stopFrisk <- read_csv("stopFrisk.csv")
+
+```
+
+
+```{r, echo=FALSE}
+inputPanel(
+  selectInput("Color", label = "Color points by...", 
+             choices = c("Suspect Race" = "SUSPECT_RACE_DESCRIPTION",
+                         "Suspect Sex" = "SUSPECT_SEX",
+                         "Suspect Searched" = "SEARCHED_FLAG",
+                         "Suspect Arrested" = "SUSPECT_ARRESTED_FLAG"))
+)
+renderPlot({
+  stopFrisk %>%
+    drop_na(STOP_LOCATION_X, STOP_LOCATION_Y) %>%
+    ggplot(aes(x = STOP_LOCATION_X, y = STOP_LOCATION_Y)) +
+      geom_point(aes_string(color = input$Color))
+})
+
+
+```
+
+
 
 ### Predicting arrests.
 
@@ -188,13 +273,20 @@ DT <- rpart(
 
 ```{r, echo=FALSE}
 # plot the DT
-plot(as.party(DT), type = "simple")
+
+renderPlot({
+  plot(as.party(DT), type = "simple")
+})
 ```
 
 
 
 
+### Conclusion
 
+Again, this was mostly going to be Allegra's part.
+
+From our investigation, we found that the number and proportion of stops depend on the time of day, in a pattern that varies according to the season, with colder months generally having fewer stops (especially in the early morning). We also find that there is a disproportionatly high number of stops performed on African American (and to a lesser degree, Hispanic) residents of NYC, despite the fact that these stops do not have a higher proportion of arrests per stop than for other racial groups. Finally, we noticed that stops tend to occur in certain areas of NYC, and that this may explain (in part) why so many African Americans were stopped in 2018.
 
 
 

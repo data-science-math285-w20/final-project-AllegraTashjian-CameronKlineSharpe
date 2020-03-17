@@ -6,7 +6,10 @@ Cameron's contrubution is in CKS.Rmd and Interactive.Rmd (along with their corre
 
 A temporary website has been created by Cameron, although the original plan was to have Allegra set that up.
 
-The temprorary webiste can be found at:
+The temprorary webiste can be found at: https://sites.google.com/carleton.edu/finalprojectmath285-at-cks/
+  Be aware that you will need to be signed in to a Carleton College account see this website.
+  Also, for some reason the interactive graph is not showing up here. I don't know how to fix this, but the code
+  (and HTML file) are both in this github directory.
 
 The files in the directory (as written by Cameron when he submitted) are:
 

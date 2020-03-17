@@ -1,0 +1,48 @@
+---
+output: html_notebook
+runtime: shiny
+---
+
+
+```{r packages, include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(caret)
+library(rpart)
+library(partykit)
+library(shiny)
+```
+
+
+### Location
+
+This was meant to be Allegra's part of the work, so I have not done much here. We were planning on having the interactive graphic here, so I have added a simple placeholder in case things go awry.
+
+
+Another Consideration one might make is where stops and arrests tend to occur. Note that "NA" here means "not recorded", which is useful information we should dispay, as it shows where police might not record information thoroughly. Use the following interactive infographic to find that out for yourselves!
+
+A simple analysis shows that there is a large group of stops, and in those groups, most of those stopped are Hispanic or African American. This suggests that part of the reason those races are so over-represented is where police stops usually take place.
+
+```{r, include = FALSE}
+stopFrisk <- read_csv("stopFrisk.csv")
+
+```
+
+
+```{r, echo=FALSE}
+inputPanel(
+  selectInput("Color", label = "Color points by...", 
+             choices = c("Suspect Race" = "SUSPECT_RACE_DESCRIPTION",
+                         "Suspect Sex" = "SUSPECT_SEX",
+                         "Suspect Searched" = "SEARCHED_FLAG",
+                         "Suspect Arrested" = "SUSPECT_ARRESTED_FLAG"))
+)
+renderPlot({
+  stopFrisk %>%
+    drop_na(STOP_LOCATION_X, STOP_LOCATION_Y) %>%
+    ggplot(aes(x = STOP_LOCATION_X, y = STOP_LOCATION_Y)) +
+      geom_point(aes_string(color = input$Color))
+})
+
+
+```

@@ -1,4 +1,44 @@
 README.md
+## Grading (95 points + 5 points evals)
+## Score: 87/95
+
+1. *Project Scope:*  9
+
+2. *Background and motivation:* 10
+
+3. *Data description:* 9
+
+- what is the time span on the data?
+
+4. *Methodology:* 9
+
+- give overall accuracy of your  decision trees
+- what crime levels lead to arrest?
+
+5. *Implementation:* 9
+
+- you split your data but didn't actually use the test data
+
+
+6. *Discussion/interpretation of results:* 10
+
+7. *Coding style and quality:* 10
+
+8. *Presentation:* 9
+
+- month axis should be relabeled
+- day of week should be ordered
+- should have proportion not count of stops by race
+- use a map to display lat/long data. And reduce the transparency of points since there is a lot of overplotting
+
+9. *Submission:* 10
+
+The following aspects will be graded on a 5-point scale:
+
+10. *Creativity:* 2
+
+
+
 
 Due to some complication caused (at least in part) by COVID-19, Allegra has applied for an extension, but Cameron has not. Therefore, it is important to seperate out whose work is whose.
 
